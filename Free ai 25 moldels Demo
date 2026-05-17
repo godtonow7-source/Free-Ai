@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aether • Kostenlose KI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;600&amp;display=swap');
+        
+        :root {
+            --primary: 234 179 8;
+        }
+        
+        .tail-container {
+            font-family: 'Inter', system_ui, sans-serif;
+        }
+        
+        .logo-font {
+            font-family: 'Space Grotesk', sans-serif;
+        }
+
+        .chat-container {
+            scrollbar-width: thin;
+            scrollbar-color: #3b82f6 #18181b;
+        }
+        
+        .message-bubble {
+            max-width: 85%;
+            animation: fadeIn 0.3s ease forwards;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .model-item {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .model-item:hover {
+            background-color: #27272a;
+            transform: translateX(4px);
+        }
+        
+        .model-item.active {
+            background-color: rgb(234 179 8 / 0.1);
+            border-left: 3px solid rgb(234 179 8);
+        }
+        
+        .typing-indicator {
+            display: flex;
+            gap: 4px;
+        }
+        
+        .typing-dot {
+            width: 5px;
+            height: 5px;
+            background-color: #64748b;
+            border-radius: 50%;
+            animation: typingBounce 1.2s infinite;
+        }
+        
+        .typing-dot:nth-child(2) { animation-delay: 150ms; }
+        .typing-dot:nth-child(3) { animation-delay: 300ms; }
+        
+        @keyframes typingBounce {
+            0%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-5px); }
+        }
+        
+        .code-header {
+            background: #1f2937;
+        }
+        
+        .welcome-card {
+            transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+        }
+        
+        .welcome-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+        }
+    </style>
+</head>
+<body class="tail-container bg-zinc-950 text-zinc-200">
+    <div class="flex h-screen overflow-hidden">
+        <!-- SIDEBAR -->
+        <div class="w-72 bg-zinc-900 border-r border-zinc-800 flex flex-col">
+            <!-- Header -->
+            <div class="p-5 border-b border-zinc-800">
+                <div class="flex items-center gap-x-3">
+                    <div class="w-9 h-9 bg-yellow-500 rounded-2xl flex items-center justify-center text-zinc-950 font-bold text-2xl logo-font shadow-inner">A</div>
+                    <div>
+                        <span class="logo-font text-3xl font-semibold tracking-tighter text-white">aether</span>
+                    </div>
+                </div>
+                <p class="text-[10px] text-emerald-400 mt-1 tracking-[1px] font-medium">100% KOSTENLOS • KEIN API KEY</p>
+            </div>
+
+            <!-- New Chat -->
+            <div onclick="newChat()" 
+                 class="mx-4 mt-6 flex items-center gap-x-3 bg-zinc-800 hover:bg-zinc-700 transition-colors text-white font-medium px-5 py-3.5 rounded-3xl cursor-pointer border border-yellow-500/30">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                <span>Neuer Chat</span>
+            </div>
+
+            <!-- Models -->
+            <div class="flex-1 overflow-auto px-3 py-6" id="models-list">
+                <div class="px-3 mb-4">
+                    <div class="uppercase text-xs font-semibold tracking-widest text-zinc-500 mb-3 px-3">Verfügbare Modelle (25+)</div>
+                    
+                    <!-- Categorized models will be injected by JS -->
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="p-4 border-t border-zinc-800 mt-auto">
+                <div class="bg-zinc-950 rounded-3xl p-4 text-xs">
+                    <div class="flex items-center justify-between text-emerald-400 text-[10px] mb-3">
+                        <div class="flex items-center gap-x-1.5">
+                            <div class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
+                            <span>ONLINE</span>
+                        </div>
+                        <span class="text-zinc-500">Demo Modus</span>
+                    </div>
+                    <p class="text-zinc-400 text-[10px] leading-relaxed">
+                        Läuft komplett im Browser.<br>
+                        Keine Anmeldung • Keine Werbung • Keine Downloads<br>
+                        <span class="text-yellow-400">Simulation mit 25 Modellen</span>
+                    </p>
+                </div>
+                
+                <div class="flex items-center justify-between text-xs mt-6 px-2">
+                    <button onclick="showSettings()" 
+                            class="flex items-center gap-x-2 text-zinc-400 hover:text-white transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 002.573-1.066c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 00.817 1.194 1.724 1.724 0 01.817 1.194c-.94 1.543.827 3.31 2.37 2.37 1.543.94 3.31-.94 2.37-2.37a1.724 1.724 0 01.817-1.194 1.724 1.724 0 01.817-1.194c-.94-1.543.827-3.31 2.37-2.37z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        <span>Einstellungen</span>
+                    </button>
+                    <div class="text-zinc-500 text-[10px]">v2026.1</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MAIN CHAT AREA -->
+        <div class="flex-1 flex flex-col">
+            <!-- Top Bar -->
+            <div class="h-14 border-b border-zinc-800 bg-zinc-900 px-6 flex items-center justify-between">
+                <div class="flex items-center gap-x-3">
+                    <div id="current-model-badge" 
+                         onclick="toggleModelSelector()"
+                         class="flex items-center gap-x-2 bg-zinc-800 hover:bg-zinc-700 transition-colors px-4 h-8 rounded-3xl text-sm font-medium cursor-pointer">
+                        <span id="current-model-name" class="text-yellow-300">Llama 3.1 405B</span>
+                        <span class="text-[10px] px-2 py-0.5 bg-zinc-700 rounded-full text-zinc-400">meta</span>
+                    </div>
+                </div>
+                
+                <div class="flex items-center gap-x-6 text-sm">
+                    <div onclick="clearChat()" 
+                         class="flex items-center gap-x-2 text-zinc-400 hover:text-red-400 cursor-pointer transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.595 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.595-1.858L5 7m5 4v6m4-6v6m1-10V9a1 1 0 00-1 1v1M12 4v6m2-3v3" />
+                        </svg>
+                        <span class="text-xs">Chat leeren</span>
+                    </div>
+                    
+                    <div class="h-5 w-px bg-zinc-700"></div>
+                    
+                    <a href="https://github.com" target="_blank"
+                       class="text-zinc-400 hover:text-white flex items-center gap-x-1 text-xs">
+                        <span>GitHub</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L9 15" />
+                        </svg>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Messages -->
+            <div id="chat-messages" 
+                 class="flex-1 overflow-auto chat-container p-8 space-y-10 bg-[radial-gradient(#27272a_1px,transparent_1px)] bg-[length:40px_40px]">
+                <!-- Welcome screen injected by JS -->
+            </div>
+
+            <!-- Input -->
+            <div class="p-6 bg-zinc-900 border-t border-zinc-700">
+                <div class="max-w-4xl mx-auto">
+                    <div class="relative">
+                        <textarea id="user-input" rows="1"
+                            class="w-full bg-zinc-800 border border-zinc-700 focus:border-yellow-400 rounded-3xl px-7 py-5 pr-24 text-base resize-y min-h-[58px] max-h-[180px] outline-none transition-all shadow-inner"
+                            placeholder="Nachricht an die KI schreiben... (z.B. Schreibe mir einen Python Webserver)"></textarea>
+                        
+                        <button onclick="sendMessage()"
+                            class="absolute bottom-4 right-4 bg-yellow-500 hover:bg-amber-400 transition-all text-zinc-950 h-10 w-10 flex items-center justify-center rounded-2xl shadow-lg">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.874L5.999 12zm0 0h7.07" />
+                            </svg>
+                        </button>
+                    </div>
+                    
+                    <div class="flex justify-center mt-4">
+                        <div onclick="showFeatures()" 
+                             class="text-[10px] flex items-center gap-x-2 text-zinc-500 hover:text-yellow-300 cursor-pointer transition-colors">
+                            <span>✦ Features: Code-Editor, Syntax-Highlighting, Markdown, 25 Modelle, Streaming, Kopieren</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT PANEL (optional info) -->
+        <div class="w-72 bg-zinc-900 border-l border-zinc-800 hidden lg:flex flex-col">
+            <div class="p-6">
+                <div class="text-xs uppercase tracking-widest mb-4 text-zinc-400">Warum Aether?</div>
+                
+                <div class="space-y-6 text-xs">
+                    <div class="flex gap-4">
+                        <div class="w-6 h-6 rounded-2xl bg-emerald-900 flex items-center justify-center flex-shrink-0 text-emerald-400">✓</div>
+                        <div>
+                            <div class="font-medium text-emerald-300">Komplett kostenlos</div>
+                            <div class="text-zinc-400">Keine API-Keys, keine Kreditkarte, keine Anmeldung</div>
+                        </div>
+                    </div>
+                    <div class="flex gap-4">
+                        <div class="w-6 h-6 rounded-2xl bg-emerald-900 flex items-center justify-center flex-shrink-0 text-emerald-400">✓</div>
+                        <div>
+                            <div class="font-medium text-emerald-300">25+ Modelle</div>
+                            <div class="text-zinc-400">Llama, Claude, GPT, Qwen, DeepSeek, Gemma, Mistral...</div>
+                        </div>
+                    </div>
+                    <div class="flex gap-4">
+                        <div class="w-6 h-6 rounded-2xl bg-emerald-900 flex items-center justify-center flex-shrink-0 text-emerald-400">✓</div>
+                        <div>
+                            <div class="font-medium text-emerald-300">Code perfekt</div>
+                            <div class="text-zinc-400">Automatische Syntax-Highlighting, Copy-Button, Python, JS, HTML, Rust...</div>
+                        </div>
+                    </div>
+                    <div class="flex gap-4">
+                        <div class="w-6 h-6 rounded-2xl bg-emerald-900 flex items-center justify-center flex-shrink-0 text-emerald-400">✓</div>
+                        <div>
+                            <div class="font-medium text-emerald-300">Läuft im Browser</div>
+                            <div class="text-zinc-400">Keine Installation. Einfach die HTML-Datei öffnen oder in deine Website einbauen.</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-10 pt-6 border-t border-zinc-700">
+                    <div class="text-[10px] text-zinc-500 leading-relaxed">
+                        Dies ist eine vollständig eigenständige HTML-Datei.<br><br>
+                        Die KI-Antworten sind eine intelligente Simulation. Für echte LLM-Anbindung kannst du die Funktion <span class="font-mono text-amber-300">generateAIResponse()</span> erweitern.
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-auto p-6 text-[10px] text-center text-zinc-500 border-t border-zinc-800">
+                Gebaut mit ❤️ für dich<br>
+                Einfach kopieren, speichern als <span class="font-mono">ai-chat.html</span> und öffnen.
+            </div>
+        </div>
+    </div>
+
+    <!-- Model Selector Modal -->
+    <div onclick="if(event.target.id === 'modal-backdrop') hideModelModal()" id="modal-backdrop"
+         class="hidden fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+        <div onclick="event.stopImmediatePropagation()" 
+             class="bg-zinc-900 w-full max-w-lg mx-4 rounded-3xl overflow-hidden">
+            <div class="p-6 border-b border-zinc-700 flex items-center justify-between">
+                <div class="font-semibold text-lg">Modelle auswählen</div>
+                <button onclick="hideModelModal()" class="text-zinc-400 hover:text-white">✕</button>
+            </div>
+            <div class="max-h-[70vh] overflow-auto p-3" id="modal-models">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div onclick="if(event.target.id === 'settings-backdrop') hideSettings()" id="settings-backdrop"
+         class="hidden fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+        <div onclick="event.stopImmediatePropagation()" 
+             class="bg-zinc-900 w-full max-w-md mx-4 rounded-3xl">
+            <div class="p-8">
+                <h2 class="text-2xl font-semibold mb-8">Einstellungen</h2>
+                
+                <div class="space-y-8">
+                    <div>
+                        <label class="block text-sm text-zinc-400 mb-2">Temperatur</label>
+                        <input type="range" id="temp-slider" min="0" max="100" value="70" 
+                               class="w-full accent-yellow-400">
+                        <div class="flex justify-between text-xs text-zinc-500 mt-1">
+                            <div>Präzise</div>
+                            <div>Kreativ</div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm text-zinc-400 mb-3">System Prompt</label>
+                        <textarea id="system-prompt" rows="3" 
+                            class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl p-4 text-sm">Du bist ein hilfreicher, präziser und witziger KI-Assistent. Antworte immer auf Deutsch.</textarea>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <button onclick="hideSettings()" 
+                                class="py-4 bg-zinc-800 hover:bg-zinc-700 transition-colors rounded-2xl font-medium">
+                            Abbrechen
+                        </button>
+                        <button onclick="saveSettings();hideSettings()" 
+                                class="py-4 bg-yellow-500 text-zinc-950 hover:bg-amber-300 transition-colors rounded-2xl font-semibold">
+                            Speichern
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Tailwind script init
+        function initializeTailwind() {
+            tailwind.config = {
+                content: [],
+                theme: {
+                    extend: {}
+                }
+            }
+        }
+        
+        // Models database - 26 models
+        const models = [
+            { id: 1, name: "Llama 3.1 405B", provider: "Meta", category: "Open Source", speed: "Sehr schnell" },
+            { id: 2, name: "Claude 3.5 Sonnet", provider: "Anthropic", category: "Proprietär", speed: "Ausgewogen" },
+            { id: 3, name: "GPT-4o", provider: "OpenAI", category: "Proprietär", speed: "Sehr schnell" },
+            { id: 4, name: "Gemini 1.5 Pro", provider: "Google", category: "Proprietär", speed: "Schnell" },
+            { id: 5, name: "Qwen2.5 72B", provider: "Alibaba", category: "Open Source", speed: "Sehr schnell" },
+            { id: 6, name: "DeepSeek R1", provider: "DeepSeek", category: "Open Source", speed: "Blitzschnell" },
+            { id: 7, name: "Mistral Large 2", provider: "Mistral", category: "Open Source", speed: "Schnell" },
+            { id: 8, name: "Llama 3.3 70B", provider: "Meta", category: "Open Source", speed: "Sehr schnell" },
+            { id: 9, name: "Command R+", provider: "Cohere", category: "Proprietär", speed: "Ausgewogen" },
+            { id: 10, name: "Gemma 2 27B", provider: "Google", category: "Open Source", speed: "Schnell" },
+            { id: 11, name: "Phi-4 14B", provider: "Microsoft", category: "Open Source", speed: "Blitzschnell" },
+            { id: 12, name: "o1-preview", provider: "OpenAI", category: "Proprietär", speed: "Denkend" },
+            { id: 13, name: "Mixtral 8x22B", provider: "Mistral", category: "Open Source", speed: "Schnell" },
+            { id: 14, name: "Dolphin 2.9.1", provider: "Cognitive Computations", category: "Open Source", speed: "Kreativ" },
+            { id: 15, name: "Snowflake Arctic", provider: "Snowflake", category: "Open Source", speed: "Schnell" },
+            { id: 16, name: "DBRX", provider: "Databricks", category: "Open Source", speed: "Ausgewogen" },
+            { id: 17, name: "Falcon 180B", provider: "TII", category: "Open Source", speed: "Mittel" },
+            { id: 18, name: "Yi 1.5 34B", provider: "01.AI", category: "Open Source", speed: "Schnell" },
+            { id: 19, name: "Nemotron 4 340B", provider: "Nvidia", category: "Proprietär", speed: "Stark" },
+            { id: 20, name: "Zephyr 7B Beta", provider: "HuggingFace", category: "Open Source", speed: "Leicht" },
+            { id: 21, name: "Starling 7B", provider: "Berkeley", category: "Open Source", speed: "Kreativ" },
+            { id: 22, name: "OpenChat 3.6", provider: "OpenChat", category: "Open Source", speed: "Schnell" },
+            { id: 23, name: "Hermes 3", provider: "Nous Research", category: "Open Source", speed: "Präzise" },
+            { id: 24, name: "Llama 3.2 11B Vision", provider: "Meta", category: "Multimodal", speed: "Schnell" },
+            { id: 25, name: "Qwen2-VL 7B", provider: "Alibaba", category: "Multimodal", speed: "Schnell" },
+            { id: 26, name: "Grok-2", provider: "xAI", category: "Proprietär", speed: "Witzig" }
+        ]
+        
+        let currentModelIndex = 0
+        let messages = []
+        let isGenerating = false
+        let currentSettings = {
+            temperature: 0.7,
+            systemPrompt: "Du bist ein extrem hilfreicher, kreativer und präziser deutschsprachiger KI-Assistent namens Aether."
+        }
+        
+        // Sample responses for demo (German)
+        const sampleResponses = [
+            "Das ist eine sehr interessante Frage! In der realen Version würde hier eine hochwertige Antwort von dem ausgewählten Modell erscheinen. Diese Demo simuliert das Verhalten von 26 verschiedenen Top-Modellen.",
+            "Hier ist ein Beispiel für Code-Generierung. Die Seite erkennt automatisch Code-Blöcke und formatiert sie mit Syntax-Highlighting und Copy-Button.",
+            "Ich kann dir bei fast allem helfen: Programmieren, Texte schreiben, Ideen brainstormen, Matheaufgaben lösen, Sprachen lernen und vieles mehr.",
+            "Möchtest du, dass ich dir ein komplettes HTML-Tailwind-Projekt generiere? Sag einfach Bescheid!",
+            "Als Llama 3.1 405B würde ich jetzt eine extrem detaillierte und nuancierte Antwort geben. Diese Demo versucht, das Gefühl nachzuahmen."
+        ]
+        
+        function getMockResponse(userMessage) {
+            const lower = userMessage.toLowerCase()
+            
+            if (lower.includes("hallo") || lower.includes("hi") || lower.includes("hey")) {
+                return "Hallo! 👋 Schön dich zu sehen. Wie kann ich dir heute helfen? Du kannst mich alles fragen — von Code über kreative Texte bis hin zu komplexen Erklärungen."
+            }
+            
+            if (lower.includes("code") || lower.includes("schreib") || lower.includes("python") || lower.includes("javascript") || lower.includes("html")) {
+                return `Hier ist ein Beispiel-Code für deine Anfrage:\n\n\`\`\`python
+import flask
+from flask import Flask, jsonify
+
+app = Flask(__name__)
+
+@app.route('/api/hello')
+def hello():
+    return jsonify({
+        "message": "Hallo von Aether KI!",
+        "model": "${models[currentModelIndex].name}",
+        "status": "kostenlos und ohne API-Key"
+    })
+
+if __name__ == '__main__':
+    app.run(debug=True)
+\`\`\`\n\nDu kannst den Code direkt kopieren. Die Seite hat vollautomatische Syntax-Highlighting und einen Copy-Button.`
+            }
+            
+            if (lower.includes("wetter") || lower.includes("wie geht")) {
+                return "Mir geht es fantastisch, danke der Nachfrage! ☀️ Da ich eine Demo bin, habe ich keine Echtzeitdaten, aber ich kann dir helfen, Wetter-APIs zu integrieren oder dir erklären, wie man eine Wetter-App baut."
+            }
+            
+            // Default cycling response
+            const index = messages.length % sampleResponses.length
+            let response = sampleResponses[index]
+            
+            // Add model name
+            const modelName = models[currentModelIndex].name
+            response += `\n\n— ${modelName} via Aether Demo`
+            
+            return response
+        }
+        
+        function renderModels(containerId, isModal = false) {
+            const container = document.getElementById(containerId)
+            if (!container) return
+            
+            container.innerHTML = ''
+            
+            // Group by category
+            const categories = {}
+            models.forEach(model => {
+                if (!categories[model.category]) categories[model.category] = []
+                categories[model.category].push(model)
+            })
+            
+            Object.keys(categories).forEach(category => {
+                const div = document.createElement('div')
+                div.className = 'mb-6'
+                div.innerHTML = `
+                    <div class="px-4 py-1 text-xs font-semibold text-yellow-400 mb-2">${category}</div>
+                `
+                
+                const modelList = document.createElement('div')
+                modelList.className = isModal ? 'grid grid-cols-1 gap-1' : 'space-y-0.5'
+                
+                categories[category].forEach((model, i) => {
+                    const isActive = model.id - 1 === currentModelIndex
+                    
+                    const modelEl = document.createElement('div')
+                    modelEl.className = `model-item px-4 py-3 rounded-2xl flex items-center justify-between cursor-pointer text-sm ${isActive ? 'active' : ''}`
+                    modelEl.innerHTML = `
+                        <div class="flex items-center gap-x-3">
+                            <div class="w-6 h-6 bg-gradient-to-br from-yellow-400 to-amber-600 text-[10px] font-bold text-black rounded-xl flex items-center justify-center">${model.provider.substring(0,1)}</div>
+                            <div>
+                                <div class="font-medium text-white">${model.name}</div>
+                                <div class="text-[10px] text-zinc-500">${model.provider} • ${model.speed}</div>
+                            </div>
+                        </div>
+                        ${isActive ? `<span class="text-[10px] bg-yellow-400 text-black px-3 py-1 rounded-3xl font-medium">AKTIV</span>` : ''}
+                    `
+                    modelEl.onclick = () => {
+                        currentModelIndex = model.id - 1
+                        renderAll()
+                        if (isModal) hideModelModal()
+                    }
+                    modelList.appendChild(modelEl)
+                })
+                
+                div.appendChild(modelList)
+                container.appendChild(div)
+            })
+        }
+        
+        function renderCurrentModel() {
+            const model = models[currentModelIndex]
+            document.getElementById('current-model-name').textContent = model.name
+        }
+        
+        function addMessage(role, content) {
+            messages.push({ role, content, timestamp: new Date() })
+            renderMessages()
+        }
+        
+        function renderMessages() {
+            const container = document.getElementById('chat-messages')
+            
+            if (messages.length === 0) {
+                renderWelcomeScreen(container)
+                return
+            }
+            
+            let html = ''
+            
+            messages.forEach((msg, index) => {
+                if (msg.role === 'user') {
+                    html += `
+                    <div class="flex justify-end">
+                        <div class="message-bubble bg-blue-600 text-white px-6 py-4 rounded-3xl rounded-tr-none max-w-[70%]">
+                            <div class="text-sm leading-relaxed">${msg.content}</div>
+                            <div class="text-[10px] text-blue-200 mt-3 text-right">Du • gerade</div>
+                        </div>
+                    </div>`
+                } else {
+                    html += `
+                    <div class="flex gap-5">
+                        <div class="w-8 h-8 bg-gradient-to-br from-amber-300 to-yellow-500 text-zinc-950 rounded-2xl flex items-center justify-center font-bold flex-shrink-0 mt-1">A</div>
+                        <div class="message-bubble bg-zinc-800 px-6 py-5 rounded-3xl rounded-tl-none flex-1">
+                            <div class="flex items-center gap-x-2 mb-3">
+                                <span class="font-semibold text-amber-300 text-sm">${models[currentModelIndex].name}</span>
+                                <span class="text-[10px] px-2.5 py-px bg-zinc-700 rounded-full">${models[currentModelIndex].provider}</span>
+                            </div>
+                            <div class="prose prose-invert text-zinc-100 max-w-none text-[15.2px] leading-relaxed" id="response-${index}">
+                                ${marked.parse(msg.content)}
+                            </div>
+                            <div class="flex gap-x-4 mt-6 text-xs">
+                                <button onclick="copyResponse(${index})" 
+                                        class="flex items-center gap-x-1.5 text-zinc-400 hover:text-white transition-colors">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M8 16v-4m4 4v4m4-8v8m4-4v-4m-16 8h16a2 2 0 002-2V8a2 2 0 00-2-2H4a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                    </svg>
+                                    <span>Kopieren</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>`
+                }
+            })
+            
+            container.innerHTML = html
+            hljs.highlightAll()
+            
+            // Scroll to bottom
+            container.scrollTop = container.scrollHeight
+        }
+        
+        function renderWelcomeScreen(container) {
+            container.innerHTML = `
+                <div class="max-w-2xl mx-auto pt-12">
+                    <div class="text-center mb-16">
+                        <div class="inline-flex items-center gap-x-2 bg-yellow-500/10 text-yellow-400 text-sm font-medium px-6 py-2 rounded-3xl mb-6">
+                            <div class="w-2 h-2 bg-yellow-400 rounded-full animate-ping"></div>
+                            DEMO MODUS AKTIV
+                        </div>
+                        <h1 class="text-6xl font-semibold logo-font tracking-tighter text-white mb-3">Hallo, ich bin Aether.</h1>
+                        <p class="text-2xl text-zinc-400">Deine kostenlose KI direkt im Browser.</p>
+                        <p class="text-zinc-500 mt-2">25+ Modelle • Code-Features • Keine Anmeldung • Keine Werbung</p>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div onclick="useExamplePrompt(this)" class="welcome-card cursor-pointer bg-zinc-900 border border-zinc-700 hover:border-yellow-400 p-6 rounded-3xl">
+                            <div class="text-amber-300 mb-2">💻</div>
+                            <div class="font-medium mb-1">Schreibe mir einen Python FastAPI Server</div>
+                            <div class="text-xs text-zinc-400">Mit Docker und Datenbank-Anbindung</div>
+                        </div>
+                        
+                        <div onclick="useExamplePrompt(this)" class="welcome-card cursor-pointer bg-zinc-900 border border-zinc-700 hover:border-yellow-400 p-6 rounded-3xl">
+                            <div class="text-amber-300 mb-2">📝</div>
+                            <div class="font-medium mb-1">Erstelle einen Business-Plan</div>
+                            <div class="text-xs text-zinc-400">Für eine KI-gestützte Schreib-App</div>
+                        </div>
+                        
+                        <div onclick="useExamplePrompt(this)" class="welcome-card cursor-pointer bg-zinc-900 border border-zinc-700 hover:border-yellow-400 p-6 rounded-3xl">
+                            <div class="text-amber-300 mb-2">🔬</div>
+                            <div class="font-medium mb-1">Erkläre Quantencomputing</div>
+                            <div class="text-xs text-zinc-400">Einfach und verständlich</div>
+                        </div>
+                        
+                        <div onclick="useExamplePrompt(this)" class="welcome-card cursor-pointer bg-zinc-900 border border-zinc-700 hover:border-yellow-400 p-6 rounded-3xl">
+                            <div class="text-amber-300 mb-2">🎨</div>
+                            <div class="font-medium mb-1">Generiere HTML + Tailwind UI</div>
+                            <div class="text-xs text-zinc-400">Für ein modernes SaaS Dashboard</div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center mt-16 text-xs text-zinc-500">
+                        Wähle ein Modell aus der linken Sidebar und schreibe deine erste Nachricht.<br>
+                        Die KI simuliert 26 verschiedene Top-Modelle.
+                    </div>
+                </div>
+            `
+        }
+        
+        function useExamplePrompt(el) {
+            const text = el.querySelector('.font-medium').textContent.trim()
+            document.getElementById('user-input').value = text
+            sendMessage()
+        }
+        
+        async function simulateTyping(responseText, messageIndex) {
+            const container = document.getElementById('chat-messages')
+            const responseContainer = document.getElementById(`response-${messageIndex}`)
+            if (!responseContainer) return
+            
+            responseContainer.innerHTML = ''
+            let i = 0
+            const speed = 18 // characters per interval
+            
+            return new Promise(resolve => {
+                const interval = setInterval(() => {
+                    if (i < responseText.length) {
+                        const chunk = responseText.substring(0, i + speed)
+                        responseContainer.innerHTML = marked.parse(chunk)
+                        hljs.highlightAll()
+                        i += speed
+                        container.scrollTop = container.scrollHeight
+                    } else {
+                        clearInterval(interval)
+                        responseContainer.innerHTML = marked.parse(responseText)
+                        hljs.highlightAll()
+                        resolve()
+                    }
+                }, 8)
+            })
+        }
+        
+        async function sendMessage() {
+            if (isGenerating) return
+            
+            const input = document.getElementById('user-input')
+            const text = input.value.trim()
+            
+            if (!text) return
+            
+            // Add user message
+            addMessage('user', text)
+            input.value = ''
+            
+            isGenerating = true
+            
+            // Add a placeholder assistant message
+            const placeholderIndex = messages.length
+            messages.push({ 
+                role: 'assistant', 
+                content: '', 
+                timestamp: new Date() 
+            })
+            renderMessages()
+            
+            // Simulate network / thinking time
+            await new Promise(r => setTimeout(r, 650))
+            
+            // Get mock response
+            const responseText = getMockResponse(text)
+            messages[placeholderIndex].content = responseText
+            
+            // Render with streaming effect
+            renderMessages()
+            await simulateTyping(responseText, placeholderIndex)
+            
+            isGenerating = false
+        }
+        
+        function copyResponse(index) {
+            const msg = messages[index]
+            if (!msg || msg.role !== 'assistant') return
+            
+            navigator.clipboard.writeText(msg.content).then(() => {
+                const originalText = event.currentTarget.innerHTML
+                
+                event.currentTarget.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 10l7-7m0 0l7 7" />
+                    </svg>
+                    <span>Kopiert!</span>
+                `
+                
+                setTimeout(() => {
+                    event.currentTarget.innerHTML = originalText
+                }, 2000)
+            })
+        }
+        
+        function newChat() {
+            if (confirm('Neuen Chat starten? Der aktuelle Verlauf wird gelöscht.')) {
+                messages = []
+                renderMessages()
+            }
+        }
+        
+        function clearChat() {
+            if (confirm('Gesamten Chatverlauf wirklich löschen?')) {
+                messages = []
+                renderMessages()
+            }
+        }
+        
+        function toggleModelSelector() {
+            const modal = document.getElementById('modal-backdrop')
+            modal.classList.remove('hidden')
+            modal.classList.add('flex')
+            
+            renderModels('modal-models', true)
+        }
+        
+        function hideModelModal() {
+            const modal = document.getElementById('modal-backdrop')
+            modal.classList.add('hidden')
+            modal.classList.remove('flex')
+            renderCurrentModel()
+        }
+        
+        function showSettings() {
+            const modal = document.getElementById('settings-backdrop')
+            modal.classList.remove('hidden')
+            modal.classList.add('flex')
+            
+            // Set current values
+            document.getElementById('temp-slider').value = currentSettings.temperature * 100
+            document.getElementById('system-prompt').value = currentSettings.systemPrompt
+        }
+        
+        function hideSettings() {
+            const modal = document.getElementById('settings-backdrop')
+            modal.classList.add('hidden')
+            modal.classList.remove('flex')
+        }
+        
+        function saveSettings() {
+            currentSettings.temperature = parseFloat(document.getElementById('temp-slider').value) / 100
+            currentSettings.systemPrompt = document.getElementById('system-prompt').value
+            alert('Einstellungen gespeichert! (Demo - hat keinen Einfluss auf die Simulation)')
+        }
+        
+        function showFeatures() {
+            alert('✅ Voll funktionsfähige Features in dieser HTML-Datei:\n\n' +
+                  '• 26 verschiedene Modelle (per Klick wechselbar)\n' +
+                  '• Streaming-Antworten (Buchstabe für Buchstabe)\n' +
+                  '• Markdown + Highlight.js Syntax-Highlighting\n' +
+                  '• Automatische Code-Erkennung mit Copy-Buttons\n' +
+                  '• Schönes modernes Dark-Design mit Tailwind\n' +
+                  '• Vollständig offline-fähig (nach dem Laden)\n' +
+                  '• Keine externen Abhängigkeiten außer CDNs\n' +
+                  '• Einfach in jede Website einbinden\n\n' +
+                  'Die KI ist eine intelligente Demo. Für echte LLMs kannst du die Funktion getMockResponse() durch einen fetch() zu einer API ersetzen.')
+        }
+        
+        function renderAll() {
+            renderCurrentModel()
+            renderModels('models-list')
+            renderMessages()
+        }
+        
+        // Keyboard support
+        function setupKeyboard() {
+            const input = document.getElementById('user-input')
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    sendMessage()
+                }
+            })
+            
+            // Auto-resize textarea
+            input.addEventListener('input', function () {
+                this.style.height = 'auto'
+                this.style.height = Math.min(this.scrollHeight, 180) + 'px'
+            })
+        }
+        
+        // Initialize everything
+        function initialize() {
+            initializeTailwind()
+            
+            // Render initial UI
+            renderAll()
+            setupKeyboard()
+            
+            // Add first welcome message after short delay
+            setTimeout(() => {
+                if (messages.length === 0) {
+                    renderMessages()
+                }
+            }, 120)
+            
+            // Demo message after 1800ms
+            setTimeout(() => {
+                if (messages.length === 0) {
+                    const demoMsg = "Hallo! Ich bin die Aether Demo. Probiere mich aus — schreibe etwas über Code, Business oder einfach 'Hallo'. Die Seite unterstützt volles Markdown und Code-Highlighting."
+                    messages.push({ role: 'assistant', content: demoMsg, timestamp: new Date() })
+                    renderMessages()
+                }
+            }, 1800)
+            
+            console.log('%cAether KI HTML Demo erfolgreich geladen! 🎉\nKostenlos, ohne API-Key, ohne Download (außer dieser Datei).', 'color:#fcd34d; font-family:monospace')
+        }
+        
+        // Auto start
+        window.onload = initialize
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9fcb47f41becc800',t:'MTc3ODk0MzkzMQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
